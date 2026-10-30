@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MirAIe.Desktop.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="MirAIe.Desktop.Views.LoginView"
+             x:DataType="vm:LoginViewModel">
+
+    <Border Classes="card" Width="380" Padding="28"
+            HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="14">
+            <StackPanel Spacing="4">
+                <TextBlock Text="MirAIe" FontSize="28" FontWeight="SemiBold" />
+                <TextBlock Classes="caption" TextWrapping="Wrap"
+                           Text="Sign in with your Panasonic MirAIe app account." />
+            </StackPanel>
+
+            <StackPanel Spacing="6" IsVisible="{Binding !UseEmail}">
+                <TextBlock Classes="caption" Text="Country" />
+                <ComboBox HorizontalAlignment="Stretch" MaxDropDownHeight="320"
+                          ItemsSource="{x:Static vm:LoginViewModel.Countries}"
+                          SelectedItem="{Binding SelectedCountry}"
+                          IsEnabled="{Binding !SignInCommand.IsRunning}" />
+            </StackPanel>
+
+            <StackPanel Spacing="6" IsVisible="{Binding !UseEmail}">
+                <TextBlock Classes="caption" Text="Mobile number" />
+                <TextBox Text="{Binding MobileNumber}"
+                         PlaceholderText="Mobile number"
+                         IsEnabled="{Binding !SignInCommand.IsRunning}">
+                    <TextBox.InnerLeftContent>
+                        <TextBlock Text="{Binding SelectedCountry.DialCode}" VerticalAlignment="Center" Margin="10,0,0,0"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                    </TextBox.InnerLeftContent>
+                </TextBox>
+            </StackPanel>
+
+            <StackPanel Spacing="6" IsVisible="{Binding UseEmail}">
+                <TextBlock Classes="caption" Text="Email" />
+                <TextBox Text="{Binding Email}"
+                         PlaceholderText="name@example.com"
+                         IsEnabled="{Binding !SignInCommand.IsRunning}" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Classes="caption" Text="Password" />
+                <TextBox Classes="revealPasswordButton"
+                         Text="{Binding Password}"
+                         PasswordChar="●"
+                         PlaceholderText="Password"
+                         IsEnabled="{Binding !SignInCommand.IsRunning}" />
+            </StackPanel>
+
+            <CheckBox Content="Remember me"
+                      IsChecked="{Binding RememberMe}"
+                      IsVisible="{Binding CanRemember}" />
+
+            <Button Classes="accent" Content="Sign in" IsDefault="True"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                    Command="{Binding SignInCommand}" />
+
+            <HyperlinkButton HorizontalAlignment="Center"
+                             Content="{Binding SwitchSignInMethodText}"
+                             Command="{Binding SwitchSignInMethodCommand}"
+                             IsEnabled="{Binding !SignInCommand.IsRunning}" />
+
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding SignInCommand.IsRunning}" />
+
+            <TextBlock Classes="error" Text="{Binding ErrorMessage}"
+                       IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+    </Border>
+
+</UserControl>

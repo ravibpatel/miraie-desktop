@@ -1,0 +1,150 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MirAIe.Desktop.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="740" d:DesignHeight="900"
+             x:Class="MirAIe.Desktop.Views.AirConditionerView"
+             x:DataType="vm:AirConditionerViewModel">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="OptionTemplate" x:DataType="vm:Option">
+            <TextBlock Text="{Binding Label}" />
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Button.round">
+            <Setter Property="Width" Value="48" />
+            <Setter Property="Height" Value="48" />
+            <Setter Property="CornerRadius" Value="24" />
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="StackPanel.setting">
+            <Setter Property="Spacing" Value="8" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Spacing="16">
+        <!-- Header: name, model and power -->
+        <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Name}" FontSize="26" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Classes="caption" Text="{Binding Description}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <TextBlock Classes="error" Text="Offline" VerticalAlignment="Center" IsVisible="{Binding !IsOnline}" />
+                <ToggleSwitch IsChecked="{Binding IsOn}" IsEnabled="{Binding IsOnline}" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Classes="error" Text="{Binding ErrorMessage}"
+                   IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+        <!-- Temperature -->
+        <Border Classes="card">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Classes="caption" Text="Room temperature" />
+                    <TextBlock Text="{Binding RoomTemperatureText}" FontSize="34" FontWeight="Light" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
+                            IsEnabled="{Binding CanControl}">
+                    <Button Classes="round" Content="−" Command="{Binding DecreaseTemperatureCommand}" />
+                    <StackPanel MinWidth="110" VerticalAlignment="Center">
+                        <TextBlock Classes="caption" Text="Set to" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding TargetTemperatureText}" FontSize="40" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    </StackPanel>
+                    <Button Classes="round" Content="+" Command="{Binding IncreaseTemperatureCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Operating settings; only available while the AC is on -->
+        <Border Classes="card" IsEnabled="{Binding CanControl}">
+            <StackPanel Spacing="18">
+                <StackPanel Classes="setting">
+                    <TextBlock Classes="label" Text="Mode" />
+                    <ListBox Classes="segmented"
+                             ItemsSource="{x:Static vm:AirConditionerViewModel.Modes}"
+                             SelectedItem="{Binding Mode}"
+                             ItemTemplate="{StaticResource OptionTemplate}" />
+                </StackPanel>
+
+                <StackPanel Classes="setting">
+                    <TextBlock Classes="label" Text="Fan speed" />
+                    <ListBox Classes="segmented"
+                             ItemsSource="{x:Static vm:AirConditionerViewModel.FanModes}"
+                             SelectedItem="{Binding Fan}"
+                             ItemTemplate="{StaticResource OptionTemplate}" />
+                </StackPanel>
+
+                <StackPanel Classes="setting">
+                    <TextBlock Classes="label" Text="Preset" />
+                    <ListBox Classes="segmented"
+                             ItemsSource="{x:Static vm:AirConditionerViewModel.Presets}"
+                             SelectedItem="{Binding Preset}"
+                             ItemTemplate="{StaticResource OptionTemplate}" />
+                </StackPanel>
+
+                <StackPanel Classes="setting" IsVisible="{Binding SupportsConverti}">
+                    <TextBlock Classes="label" Text="Converti (capacity)" />
+                    <ComboBox MinWidth="140"
+                              ItemsSource="{x:Static vm:AirConditionerViewModel.ConvertiModes}"
+                              SelectedItem="{Binding Converti}"
+                              ItemTemplate="{StaticResource OptionTemplate}" />
+                </StackPanel>
+
+                <StackPanel Classes="setting">
+                    <TextBlock Classes="label" Text="Vertical swing" />
+                    <ListBox Classes="segmented"
+                             ItemsSource="{x:Static vm:AirConditionerViewModel.SwingPositions}"
+                             SelectedItem="{Binding VerticalSwing}"
+                             ItemTemplate="{StaticResource OptionTemplate}" />
+                </StackPanel>
+
+                <StackPanel Classes="setting">
+                    <TextBlock Classes="label" Text="Horizontal swing" />
+                    <ListBox Classes="segmented"
+                             ItemsSource="{x:Static vm:AirConditionerViewModel.SwingPositions}"
+                             SelectedItem="{Binding HorizontalSwing}"
+                             ItemTemplate="{StaticResource OptionTemplate}" />
+                </StackPanel>
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="label" Text="Display light" VerticalAlignment="Center" />
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding DisplayOn}" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Energy use -->
+        <Border Classes="card">
+            <StackPanel Spacing="14">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="label" Text="Energy use" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshEnergyCommand}" />
+                </Grid>
+                <Grid ColumnDefinitions="*,*,*">
+                    <StackPanel Spacing="2">
+                        <TextBlock Classes="caption" Text="Yesterday" />
+                        <TextBlock Text="{Binding DailyEnergy}" FontSize="18" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Classes="caption" Text="{Binding WeeklyEnergyLabel}" />
+                        <TextBlock Text="{Binding WeeklyEnergy}" FontSize="18" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="2">
+                        <TextBlock Classes="caption" Text="{Binding MonthlyEnergyLabel}" />
+                        <TextBlock Text="{Binding MonthlyEnergy}" FontSize="18" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock Classes="caption" TextWrapping="Wrap"
+                           Text="MirAIe publishes each day's figures the following morning." />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+
+</UserControl>

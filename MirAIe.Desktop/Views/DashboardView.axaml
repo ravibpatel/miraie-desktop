@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MirAIe.Desktop.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="720"
+             x:Class="MirAIe.Desktop.Views.DashboardView"
+             x:DataType="vm:DashboardViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Ellipse.connection">
+            <Setter Property="Fill" Value="#F59E0B" />
+        </Style>
+        <Style Selector="Ellipse.connection.connected">
+            <Setter Property="Fill" Value="#22C55E" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="260,*">
+        <!-- Sidebar: AC list and session actions -->
+        <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                BorderThickness="0,0,1,0">
+            <DockPanel Margin="12">
+                <StackPanel DockPanel.Dock="Top" Margin="8,8,8,16" Spacing="2">
+                    <TextBlock Text="MirAIe" FontSize="22" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption" Text="Air conditioners" />
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="4,12,4,4" Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Ellipse Classes="connection" Classes.connected="{Binding IsConnected}"
+                                 Width="8" Height="8" VerticalAlignment="Center" />
+                        <TextBlock Classes="caption" Text="{Binding ConnectionText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,8,*">
+                        <Button Content="Refresh" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Command="{Binding RefreshCommand}" />
+                        <Button Grid.Column="2" Content="Sign out" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Command="{Binding SignOutCommand}" />
+                    </Grid>
+                </StackPanel>
+
+                <ListBox ItemsSource="{Binding Devices}"
+                         SelectedItem="{Binding SelectedDevice}"
+                         Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AirConditionerViewModel">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Classes="caption" Text="{Binding Summary}" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{Binding RoomTemperatureText}"
+                                           FontSize="18" VerticalAlignment="Center" Margin="8,0,0,0" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Selected AC; the ViewLocator renders it with AirConditionerView. -->
+        <ScrollViewer Grid.Column="1">
+            <ContentControl Content="{Binding SelectedDevice}" Margin="28,24" MaxWidth="760" />
+        </ScrollViewer>
+
+        <TextBlock Grid.Column="1" Classes="caption"
+                   Text="No air conditioners were found in your MirAIe account."
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   IsVisible="{Binding !HasDevices}" />
+    </Grid>
+
+</UserControl>

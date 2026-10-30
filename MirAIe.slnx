@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="MirAIe.Core.Tests/MirAIe.Core.Tests.csproj" />
+  <Project Path="MirAIe.Core/MirAIe.Core.csproj" />
+  <Project Path="MirAIe.Desktop/MirAIe.Desktop.csproj" />
+</Solution>
