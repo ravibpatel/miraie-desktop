@@ -1,0 +1,146 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - run: dotnet test MirAIe.Core.Tests/MirAIe.Core.Tests.csproj --configuration Release
+
+  publish:
+    name: publish (${{ matrix.rid }})
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest }
+          - { rid: win-arm64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-latest, appimage-arch: x86_64 }
+          - { rid: linux-arm64, os: ubuntu-latest, appimage-arch: aarch64 }
+          # macOS builds need macOS for codesign and ditto.
+          - { rid: osx-x64, os: macos-latest }
+          - { rid: osx-arm64, os: macos-latest }
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(dotnet msbuild MirAIe.Desktop/MirAIe.Desktop.csproj -getProperty:Version | tr -d '\r')"
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          dotnet publish MirAIe.Desktop/MirAIe.Desktop.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained \
+            --output publish \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:EnableCompressionInSingleFile=true \
+            -p:DebugType=None \
+            -p:Version="$version"
+
+      - name: Package for Windows
+        if: startsWith(matrix.rid, 'win-')
+        shell: bash
+        run: |
+          file="MirAIe.Desktop-${{ matrix.rid }}.exe"
+          cp publish/MirAIe.Desktop.exe "$file"
+          echo "FILE=$file" >> "$GITHUB_ENV"
+
+      - name: Package for macOS
+        if: startsWith(matrix.rid, 'osx-')
+        run: |
+          app=MirAIe.app
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp publish/MirAIe.Desktop "$app/Contents/MacOS/"
+          cp packaging/macos/MirAIe.icns "$app/Contents/Resources/"
+          # CFBundleVersion only allows numbers and dots, so drop any pre-release suffix such as -beta.1.
+          sed "s/{VERSION}/${VERSION%%-*}/g" packaging/macos/Info.plist > "$app/Contents/Info.plist"
+          # Sign ad hoc so the signature covers the bundle; Apple Silicon won't run unsigned code.
+          codesign --force --sign - "$app"
+          codesign --verify --strict --verbose "$app"
+          file="MirAIe.Desktop-${{ matrix.rid }}.zip"
+          ditto -c -k --keepParent "$app" "$file"
+          echo "FILE=$file" >> "$GITHUB_ENV"
+
+      - name: Package for Linux
+        if: startsWith(matrix.rid, 'linux-')
+        env:
+          ARCH: ${{ matrix.appimage-arch }}
+        run: |
+          curl -sSfL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          curl -sSfL -o runtime "https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-$ARCH"
+          case "$ARCH" in
+            x86_64) runtime_sha256=2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d ;;
+            aarch64) runtime_sha256=00cbdfcf917cc6c0ff6d3347d59e0ca1f7f45a6df1a428a0d6d8a78664d87444 ;;
+          esac
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum --check
+          echo "$runtime_sha256  runtime" | sha256sum --check
+          chmod +x appimagetool
+
+          mkdir -p AppDir/usr/bin
+          cp publish/MirAIe.Desktop AppDir/usr/bin/
+          cp packaging/linux/miraie-desktop.desktop packaging/linux/miraie-desktop.png AppDir/
+          ln -s usr/bin/MirAIe.Desktop AppDir/AppRun
+          ln -s miraie-desktop.png AppDir/.DirIcon
+
+          file="MirAIe.Desktop-${{ matrix.rid }}.AppImage"
+          # Unpack appimagetool instead of mounting it, as the runner may not have FUSE.
+          APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool --runtime-file runtime AppDir "$file"
+          echo "FILE=$file" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.FILE }}
+          archive: false
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Reuse the release if one already exists for this tag (e.g. created from the GitHub UI).
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
+          fi
+          find dist -type f -exec gh release upload "$TAG" --clobber {} +

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- icon.svg on Apple's icon grid: an 824 px body centred on a 1024 px canvas, with a drop shadow. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+  <rect x="100" y="112" width="824" height="824" rx="192" fill="#000000" fill-opacity="0.3" filter="url(#shadow)"/>
+  <g transform="translate(100 100) scale(3.4333) translate(-8 -8)">
+    <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+    <rect x="40" y="56" width="176" height="76" rx="22" fill="#FFFFFF"/>
+    <rect x="62" y="110" width="132" height="8" rx="4" fill="#1D4ED8" fill-opacity="0.3"/>
+    <circle cx="190" cy="82" r="7" fill="#22C55E"/>
+    <g fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round">
+      <path d="M84 156 q-4 34 -28 60"/>
+      <path d="M128 156 v62"/>
+      <path d="M172 156 q4 34 28 60"/>
+    </g>
+  </g>
+</svg>

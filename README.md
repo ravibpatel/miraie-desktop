@@ -1,10 +1,21 @@
-# MirAIe Desktop
+# <img src="art/icon.svg" width="40" alt=""> MirAIe Desktop
 
 A desktop app (Avalonia 12, .NET 10, MVVM) for controlling Panasonic ACs that use the MirAIe app.
 It's a port of the Home Assistant integration [rkzofficial/ha-miraie-ac](https://github.com/rkzofficial/ha-miraie-ac)
 and the `miraie-ac` Python library it depends on.
 
-## Run
+## Download
+
+Get the latest version from [Releases](https://github.com/ravibpatel/miraie-desktop/releases/latest). Each download is self-contained,
+so you don't need to install .NET.
+
+| Platform | File | First run |
+|---|---|---|
+| Windows | `MirAIe.Desktop-win-x64.exe` (`win-arm64` for ARM PCs) | Run it. If SmartScreen warns you, choose **More info → Run anyway**. |
+| macOS | `MirAIe.Desktop-osx-arm64.zip` for Apple silicon, `osx-x64` for Intel Macs | Unzip it and move `MirAIe.app` to Applications. The app isn't notarized, so the first time you open it, macOS blocks it: go to **System Settings → Privacy & Security** and choose **Open Anyway**. |
+| Linux | `MirAIe.Desktop-linux-x64.AppImage` (`linux-arm64` for ARM) | Make it executable with `chmod +x`, then run it. If your system has no FUSE, run it with `--appimage-extract-and-run`. |
+
+## Run from source
 
 ```
 dotnet run --project MirAIe.Desktop

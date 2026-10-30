@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=MirAIe
+Comment=Control Panasonic air conditioners that use the MirAIe app
+Exec=MirAIe.Desktop
+Icon=miraie-desktop
+Categories=Utility;
+Terminal=false
+StartupWMClass=MirAIe.Desktop
