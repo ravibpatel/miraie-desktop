@@ -132,6 +132,8 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+          # Keep the macOS zips as they are; otherwise the action extracts them and the release gets the bundle's loose files.
+          skip-decompress: true
 
       - name: Upload to release
         env:
