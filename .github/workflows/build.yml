@@ -2,10 +2,10 @@ name: Build
 
 on:
   push:
-    branches: [master]
+    # Listing branches is required alongside tags; with tags alone, branch pushes wouldn't run.
+    branches: ['**']
     tags: ['v*']
   pull_request:
-    branches: [master]
   workflow_dispatch:
 
 permissions:
