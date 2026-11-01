@@ -5,9 +5,6 @@ namespace MirAIe.Core;
 /// </summary>
 public sealed record AcStatus
 {
-    public const double MinTemperature = 16;
-    public const double MaxTemperature = 30;
-
     public bool IsOnline { get; init; }
     public bool IsOn { get; init; }
     public double TargetTemperature { get; init; } = 24;
@@ -27,6 +24,9 @@ public sealed record AcStatus
     public int HorizontalSwing { get; init; }
 
     public bool DisplayOn { get; init; } = true;
+
+    /// <summary>The nanoe air purifier's setting. Only tracked for models that have one.</summary>
+    public NanoeMode Nanoe { get; init; }
 }
 
 public sealed record AcDetails(

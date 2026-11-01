@@ -25,15 +25,7 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource? _temperatureDelay;
     private bool _energyLoaded;
 
-    public AirConditionerViewModel(MirAIeHub hub, AirConditioner device)
-    {
-        _hub = hub;
-        _device = device;
-        ApplyStatus(device.Status);
-        device.StatusChanged += OnStatusChanged;
-    }
-
-    public static IReadOnlyList<Option<HvacMode>> Modes { get; } =
+    private static readonly IReadOnlyList<Option<HvacMode>> AllModes =
     [
         new(HvacMode.Cool, "Cool"),
         new(HvacMode.Auto, "Auto"),
@@ -42,7 +34,7 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
         new(HvacMode.Heat, "Heat"),
     ];
 
-    public static IReadOnlyList<Option<FanMode>> FanModes { get; } =
+    private static readonly IReadOnlyList<Option<FanMode>> AllFanModes =
     [
         new(FanMode.Auto, "Auto"),
         new(FanMode.Quiet, "Quiet"),
@@ -51,7 +43,7 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
         new(FanMode.High, "High"),
     ];
 
-    public static IReadOnlyList<Option<PresetMode>> Presets { get; } =
+    private static readonly IReadOnlyList<Option<PresetMode>> AllPresets =
     [
         new(PresetMode.None, "Normal"),
         new(PresetMode.Eco, "Eco"),
@@ -59,7 +51,7 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
         new(PresetMode.Clean, "Clean"),
     ];
 
-    public static IReadOnlyList<Option<ConvertiMode>> ConvertiModes { get; } =
+    private static readonly IReadOnlyList<Option<ConvertiMode>> AllConvertiModes =
     [
         new(ConvertiMode.Off, "Off"),
         new(ConvertiMode.HighCapacity, "110%"),
@@ -67,12 +59,65 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
         new(ConvertiMode.C90, "90%"),
         new(ConvertiMode.C80, "80%"),
         new(ConvertiMode.C70, "70%"),
+        new(ConvertiMode.C60, "60%"),
         new(ConvertiMode.C55, "55%"),
+        new(ConvertiMode.C50, "50%"),
         new(ConvertiMode.C40, "40%"),
     ];
 
-    public static IReadOnlyList<Option<int>> SwingPositions { get; } =
+    private static readonly IReadOnlyList<Option<int>> AllSwingPositions =
         [new(0, "Auto"), .. Enumerable.Range(1, 5).Select(i => new Option<int>(i, i.ToString()))];
+
+    private static readonly IReadOnlyList<Option<NanoeMode>> AllNanoeModes =
+    [
+        new(NanoeMode.Off, "Off"),
+        new(NanoeMode.On, "On"),
+        new(NanoeMode.Auto, "Auto"),
+    ];
+
+    public AirConditionerViewModel(MirAIeHub hub, AirConditioner device)
+    {
+        _hub = hub;
+        _device = device;
+
+        var capabilities = device.Capabilities;
+        Modes = Supported(AllModes, capabilities.Modes);
+        FanModes = Supported(AllFanModes, capabilities.FanModes);
+        Presets = Supported(AllPresets, capabilities.Presets);
+        ConvertiModes = Supported(AllConvertiModes, capabilities.ConvertiModes);
+        VerticalSwingPositions = Supported(AllSwingPositions, capabilities.VerticalSwingPositions);
+        HorizontalSwingPositions = Supported(AllSwingPositions, capabilities.HorizontalSwingPositions);
+        NanoeModes = Supported(AllNanoeModes, capabilities.Nanoe?.Modes ?? []);
+
+        ApplyStatus(device.Status);
+        device.StatusChanged += OnStatusChanged;
+    }
+
+    // Only the options the AC's model supports.
+    public IReadOnlyList<Option<HvacMode>> Modes { get; }
+    public IReadOnlyList<Option<FanMode>> FanModes { get; }
+    public IReadOnlyList<Option<PresetMode>> Presets { get; }
+    public IReadOnlyList<Option<ConvertiMode>> ConvertiModes { get; }
+    public IReadOnlyList<Option<int>> VerticalSwingPositions { get; }
+    public IReadOnlyList<Option<int>> HorizontalSwingPositions { get; }
+    public IReadOnlyList<Option<NanoeMode>> NanoeModes { get; }
+
+    // A list with a single option ("Normal", "Off" or "Auto") offers no choice, so it's hidden.
+    public bool SupportsPresets => Presets.Count > 1;
+    public bool SupportsVerticalSwing => VerticalSwingPositions.Count > 1;
+    public bool SupportsHorizontalSwing => HorizontalSwingPositions.Count > 1;
+    public bool SupportsDisplayLight => _device.Capabilities.DisplayLight;
+
+    // nanoe G and X are on or off, so they get a switch; nanoe GA also has Auto, so it gets a choice.
+    public bool SupportsNanoeSwitch => NanoeModes.Count == 2;
+    public bool SupportsNanoeModes => NanoeModes.Count > 2;
+
+    public string NanoeLabel => _device.Capabilities.Nanoe?.Type switch
+    {
+        NanoeType.X => "nanoe™ X",
+        NanoeType.GA => "nanoe™ GA",
+        _ => "nanoe™ G",
+    };
 
     public string Name => _device.Name;
 
@@ -130,6 +175,12 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
     public partial bool DisplayOn { get; set; }
 
     [ObservableProperty]
+    public partial bool NanoeOn { get; set; }
+
+    [ObservableProperty]
+    public partial Option<NanoeMode>? Nanoe { get; set; }
+
+    [ObservableProperty]
     public partial string? ErrorMessage { get; set; }
 
     [ObservableProperty]
@@ -151,12 +202,12 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
 
     public string RoomTemperatureText => RoomTemperature is { } t ? $"{t:0.#}°C" : "--";
 
-    public string TargetTemperatureText => $"{TargetTemperature:0}°C";
+    public string TargetTemperatureText => $"{TargetTemperature:0.#}°C";
 
     public string Summary =>
         !IsOnline ? "Offline"
         : !IsOn ? "Off"
-        : $"{Mode?.Label} · {TargetTemperature:0}°C";
+        : $"{Mode?.Label} · {TargetTemperature:0.#}°C";
 
     public void LoadEnergyIfNeeded()
     {
@@ -210,15 +261,23 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
 
     partial void OnDisplayOnChanged(bool value) => Send(d => d.SetDisplayAsync(value));
 
-    [RelayCommand(CanExecute = nameof(CanIncreaseTemperature))]
-    private void IncreaseTemperature() => ChangeTemperature(1);
+    partial void OnNanoeOnChanged(bool value) => Send(d => d.SetNanoeAsync(value ? NanoeMode.On : NanoeMode.Off));
 
-    private bool CanIncreaseTemperature() => TargetTemperature < AcStatus.MaxTemperature;
+    partial void OnNanoeChanged(Option<NanoeMode>? value)
+    {
+        if (value is not null)
+            Send(d => d.SetNanoeAsync(value.Value));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanIncreaseTemperature))]
+    private void IncreaseTemperature() => ChangeTemperature(_device.Capabilities.TemperatureStep);
+
+    private bool CanIncreaseTemperature() => TargetTemperature < _device.Capabilities.MaxTemperature;
 
     [RelayCommand(CanExecute = nameof(CanDecreaseTemperature))]
-    private void DecreaseTemperature() => ChangeTemperature(-1);
+    private void DecreaseTemperature() => ChangeTemperature(-_device.Capabilities.TemperatureStep);
 
-    private bool CanDecreaseTemperature() => TargetTemperature > AcStatus.MinTemperature;
+    private bool CanDecreaseTemperature() => TargetTemperature > _device.Capabilities.MinTemperature;
 
     [RelayCommand]
     private async Task RefreshEnergyAsync()
@@ -255,9 +314,10 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void ChangeTemperature(int delta)
+    private void ChangeTemperature(double delta)
     {
-        TargetTemperature = Math.Clamp(TargetTemperature + delta, AcStatus.MinTemperature, AcStatus.MaxTemperature);
+        var capabilities = _device.Capabilities;
+        TargetTemperature = Math.Clamp(TargetTemperature + delta, capabilities.MinTemperature, capabilities.MaxTemperature);
 
         // Wait for the user to stop clicking before sending, so the AC gets one command.
         _pendingTemperature = TargetTemperature;
@@ -319,11 +379,13 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
             Mode = Find(Modes, status.Mode);
             Fan = Find(FanModes, status.FanMode);
             Preset = Find(Presets, status.Preset);
-            SupportsConverti = status.Converti != ConvertiMode.NotSupported;
+            SupportsConverti = ConvertiModes.Count > 1 && status.Converti != ConvertiMode.NotSupported;
             Converti = Find(ConvertiModes, status.Converti);
-            VerticalSwing = Find(SwingPositions, status.VerticalSwing);
-            HorizontalSwing = Find(SwingPositions, status.HorizontalSwing);
+            VerticalSwing = Find(VerticalSwingPositions, status.VerticalSwing);
+            HorizontalSwing = Find(HorizontalSwingPositions, status.HorizontalSwing);
             DisplayOn = status.DisplayOn;
+            NanoeOn = status.Nanoe != NanoeMode.Off;
+            Nanoe = Find(NanoeModes, status.Nanoe);
         }
         finally
         {
@@ -333,4 +395,7 @@ public partial class AirConditionerViewModel : ViewModelBase, IDisposable
 
     private static Option<T>? Find<T>(IReadOnlyList<Option<T>> options, T value) =>
         options.FirstOrDefault(o => EqualityComparer<T>.Default.Equals(o.Value, value));
+
+    private static List<Option<T>> Supported<T>(IReadOnlyList<Option<T>> options, IReadOnlyList<T> supported) =>
+        [.. options.Where(o => supported.Contains(o.Value))];
 }

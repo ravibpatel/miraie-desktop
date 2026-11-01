@@ -11,18 +11,21 @@ internal static class StatusParser
     /// <summary>
     /// Parses the REST status response. Anything other than an AC payload means the device is unreachable.
     /// </summary>
-    public static AcStatus FromCloudStatus(AcStatus current, JsonElement payload)
+    public static AcStatus FromCloudStatus(AcStatus current, JsonElement payload, string? nanoeKey = null)
     {
         if (payload.GetText("ty") != "AC")
             return current with { IsOnline = false };
 
-        return Apply(current, payload) with { IsOnline = payload.GetText("onlineStatus") == "true" };
+        return Apply(current, payload, nanoeKey) with { IsOnline = payload.GetText("onlineStatus") == "true" };
     }
 
     /// <summary>
     /// Applies the fields present in <paramref name="payload"/> on top of <paramref name="current"/>.
     /// </summary>
-    public static AcStatus Apply(AcStatus current, JsonElement payload)
+    /// <param name="nanoeKey">
+    /// The model's nanoe field. Models without nanoe report one too, so it's only read when given.
+    /// </param>
+    public static AcStatus Apply(AcStatus current, JsonElement payload, string? nanoeKey = null)
     {
         var status = current;
 
@@ -49,6 +52,9 @@ internal static class StatusParser
 
         if (payload.GetText("acdc") is { } display)
             status = status with { DisplayOn = display == "on" };
+
+        if (nanoeKey is not null && WireValues.ToNanoeMode(payload.GetText(nanoeKey)) is { } nanoe)
+            status = status with { Nanoe = nanoe };
 
         var boost = payload.GetText("acpm");
         var eco = payload.GetText("acem");

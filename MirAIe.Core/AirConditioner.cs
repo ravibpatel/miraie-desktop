@@ -24,6 +24,10 @@ public sealed class AirConditioner
     public string Id { get; }
     public string Name { get; }
     public AcDetails? Details { get; internal set; }
+
+    /// <summary>What the AC's model supports; <see cref="AcCapabilities.Default"/> when that couldn't be read.</summary>
+    public AcCapabilities Capabilities { get; internal set; } = AcCapabilities.Default;
+
     public AcStatus Status { get; private set; } = new();
 
     internal string ControlTopic { get; }
@@ -38,7 +42,7 @@ public sealed class AirConditioner
 
     public Task SetTemperatureAsync(double temperature, CancellationToken cancellationToken = default)
     {
-        temperature = Math.Clamp(temperature, AcStatus.MinTemperature, AcStatus.MaxTemperature);
+        temperature = Math.Clamp(temperature, Capabilities.MinTemperature, Capabilities.MaxTemperature);
         return SendAsync(ControlPayloads.Temperature(temperature), s => s with { TargetTemperature = temperature }, cancellationToken);
     }
 
@@ -80,9 +84,20 @@ public sealed class AirConditioner
     public Task SetDisplayAsync(bool on, CancellationToken cancellationToken = default) =>
         SendAsync(ControlPayloads.Display(on), s => s with { DisplayOn = on }, cancellationToken);
 
-    internal void ApplyCloudStatus(JsonElement payload) => UpdateStatus(s => StatusParser.FromCloudStatus(s, payload));
+    public Task SetNanoeAsync(NanoeMode mode, CancellationToken cancellationToken = default)
+    {
+        var nanoe = Capabilities.Nanoe ?? throw new NotSupportedException($"{Name} has no nanoe air purifier.");
+        if (!nanoe.Modes.Contains(mode))
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, $"nanoe {nanoe.Type} can't be set to {mode}.");
 
-    internal void ApplyStatusMessage(JsonElement payload) => UpdateStatus(s => StatusParser.Apply(s, payload));
+        return SendAsync(ControlPayloads.Nanoe(nanoe, mode), s => s with { Nanoe = mode }, cancellationToken);
+    }
+
+    internal void ApplyCloudStatus(JsonElement payload) =>
+        UpdateStatus(s => StatusParser.FromCloudStatus(s, payload, Capabilities.Nanoe?.Key));
+
+    internal void ApplyStatusMessage(JsonElement payload) =>
+        UpdateStatus(s => StatusParser.Apply(s, payload, Capabilities.Nanoe?.Key));
 
     internal void ApplyConnectionMessage(JsonElement payload) =>
         UpdateStatus(s => s with { IsOnline = payload.GetText("onlineStatus") == "true" });

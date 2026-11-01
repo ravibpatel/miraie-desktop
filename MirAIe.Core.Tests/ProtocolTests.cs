@@ -40,6 +40,19 @@ public class ControlPayloadTests
         Assert.Equal("""{"ki":1,"cnt":"an","sid":"1","acmd":"fan"}""", ControlPayloads.Mode(HvacMode.Fan));
         Assert.Equal("""{"ki":1,"cnt":"an","sid":"1","acfs":"quiet"}""", ControlPayloads.Fan(FanMode.Quiet));
     }
+
+    [Fact]
+    public void Nanoe_uses_model_key_and_capability_key_index()
+    {
+        Assert.Equal("""{"ki":7,"cnt":"an","sid":"1","acng":"on"}""", ControlPayloads.Nanoe(new NanoeFeature(NanoeType.G, "acng"), NanoeMode.On));
+        Assert.Equal("""{"ki":23,"cnt":"an","sid":"1","model_key":"off"}""", ControlPayloads.Nanoe(new NanoeFeature(NanoeType.X, "model_key"), NanoeMode.Off));
+    }
+
+    [Fact]
+    public void Nanoe_ga_is_sent_without_key_index()
+    {
+        Assert.Equal("""{"cnt":"an","sid":"1","model_key":"auto"}""", ControlPayloads.Nanoe(new NanoeFeature(NanoeType.GA, "model_key"), NanoeMode.Auto));
+    }
 }
 
 public class StatusParserTests
@@ -115,6 +128,125 @@ public class StatusParserTests
         var status = StatusParser.Apply(current, Json("""{"acmd":"turbo","cnv":12}"""));
 
         Assert.Equal(current, status);
+    }
+
+    [Fact]
+    public void Nanoe_is_only_read_for_models_that_have_it()
+    {
+        var payload = Json("""{"acng":"on"}""");
+
+        Assert.Equal(NanoeMode.Off, StatusParser.Apply(new AcStatus(), payload).Nanoe);
+        Assert.Equal(NanoeMode.On, StatusParser.Apply(new AcStatus(), payload, "acng").Nanoe);
+        Assert.Equal(NanoeMode.Auto, StatusParser.Apply(new AcStatus(), Json("""{"acng":"auto"}"""), "acng").Nanoe);
+    }
+}
+
+public class CapabilityParserTests
+{
+    private static AcCapabilities Parse(string json) => CapabilityParser.Parse(JsonDocument.Parse(json).RootElement);
+
+    // Model 130185, as returned by deviceModels/modelId (trimmed to the capabilities the app reads).
+    private const string Model130185 = """
+        {"modelId":"130185","controlCapabilities":[
+         {"capability":"ACFanSpeed","attributes":[{"key":"acfs","values":["auto","quiet","low","medium","high"]}]},
+         {"capability":"ACMode","attributes":[{"key":"acmd","values":["auto","cool","dry","fan"]}]},
+         {"capability":"ACTemperature","attributes":[{"key":"actmp","range":{"increment":[{"unit":"celcius","value":1},{"unit":"fahrenheit","value":1}],"max":[{"unit":"celcius","value":30},{"unit":"fahrenheit","value":86}],"min":[{"unit":"celcius","value":16},{"unit":"fahrenheit","value":61}]}}]},
+         {"capability":"Convertible","attributes":[{"intValues":[110,100,90,80,70,55,40,0],"key":"cnv"}]},
+         {"capability":"DisplayControl","attributes":[{"key":"acdc","values":["on","off"]}]},
+         {"capability":"ECOMode","attributes":[{"key":"acem","values":["on","off"]}]},
+         {"capability":"EvaporatorClean","attributes":[{"key":"acec"}]},
+         {"capability":"HorizontalSwing","attributes":[{"key":"achs","range":{"increment":[{"value":1}],"max":[{"value":5}],"min":[{"value":0}]}}]},
+         {"capability":"PowerStatus","attributes":[{"key":"ps"}]},
+         {"capability":"PowerfulMode","attributes":[{"key":"acpm"}]},
+         {"capability":"VerticalSwing","attributes":[{"key":"acvs","range":{"increment":[{"value":1}],"max":[{"value":5}],"min":[{"value":0}]}}]}]}
+        """;
+
+    [Fact]
+    public void Model_lists_its_controls()
+    {
+        var capabilities = Parse(Model130185);
+
+        Assert.Equal((16.0, 30.0, 1.0), (capabilities.MinTemperature, capabilities.MaxTemperature, capabilities.TemperatureStep));
+        Assert.Equal([HvacMode.Auto, HvacMode.Cool, HvacMode.Dry, HvacMode.Fan], capabilities.Modes);
+        Assert.Equal([FanMode.Auto, FanMode.Quiet, FanMode.Low, FanMode.Medium, FanMode.High], capabilities.FanModes);
+        Assert.Equal([PresetMode.None, PresetMode.Eco, PresetMode.Boost, PresetMode.Clean], capabilities.Presets);
+        Assert.Equal(
+            [ConvertiMode.Off, ConvertiMode.HighCapacity, ConvertiMode.FullCapacity, ConvertiMode.C90, ConvertiMode.C80, ConvertiMode.C70, ConvertiMode.C55, ConvertiMode.C40],
+            capabilities.ConvertiModes);
+        Assert.Equal([0, 1, 2, 3, 4, 5], capabilities.VerticalSwingPositions);
+        Assert.Equal([0, 1, 2, 3, 4, 5], capabilities.HorizontalSwingPositions);
+        Assert.True(capabilities.DisplayLight);
+        Assert.Null(capabilities.Nanoe);
+    }
+
+    [Fact]
+    public void Unlisted_optional_controls_are_unsupported()
+    {
+        var capabilities = Parse("""
+            {"controlCapabilities":[
+             {"capability":"PowerStatus","attributes":[{"key":"ps"}]},
+             {"capability":"NanoeG","attributes":[{"key":"acng","values":["on","off"]}]},
+             {"capability":"VerticalSwing","attributes":[{"key":"acvs","range":{"max":[{"value":3}],"min":[{"value":0}]}}]}]}
+            """);
+
+        Assert.Equal((16.0, 30.0, 1.0), (capabilities.MinTemperature, capabilities.MaxTemperature, capabilities.TemperatureStep));
+        Assert.Equal(AcCapabilities.Default.Modes, capabilities.Modes);
+        Assert.Equal([PresetMode.None], capabilities.Presets);
+        Assert.Empty(capabilities.ConvertiModes);
+        Assert.Equal([0, 1, 2, 3], capabilities.VerticalSwingPositions);
+        Assert.Empty(capabilities.HorizontalSwingPositions);
+        Assert.False(capabilities.DisplayLight);
+        Assert.Equal(new NanoeFeature(NanoeType.G, "acng"), capabilities.Nanoe);
+    }
+
+    [Fact]
+    public void Temperature_range_uses_celsius_entries()
+    {
+        var capabilities = Parse("""
+            {"controlCapabilities":[{"capability":"ACTemperature","attributes":[{"key":"actmp","range":{
+             "increment":[{"unit":"fahrenheit","value":1},{"unit":"celcius","value":0.5}],
+             "max":[{"unit":"fahrenheit","value":88},{"unit":"celcius","value":31}],
+             "min":[{"unit":"fahrenheit","value":62},{"unit":"celcius","value":17}]}}]}]}
+            """);
+
+        Assert.Equal((17.0, 31.0, 0.5), (capabilities.MinTemperature, capabilities.MaxTemperature, capabilities.TemperatureStep));
+    }
+
+    [Fact]
+    public void Nanoe_x_is_recognised()
+    {
+        var capabilities = Parse("""{"controlCapabilities":[{"capability":"NanoeX","attributes":[{"key":"model_key"}]}]}""");
+
+        Assert.Equal(new NanoeFeature(NanoeType.X, "model_key"), capabilities.Nanoe);
+        Assert.Equal([NanoeMode.Off, NanoeMode.On], capabilities.Nanoe!.Modes);
+    }
+
+    [Fact]
+    public void Nanoe_ga_has_auto()
+    {
+        var capabilities = Parse("""{"controlCapabilities":[{"capability":"NanoeGA","attributes":[{"key":"model_key","values":["off","on","auto"]}]}]}""");
+
+        Assert.Equal(new NanoeFeature(NanoeType.GA, "model_key"), capabilities.Nanoe);
+        Assert.Equal([NanoeMode.Off, NanoeMode.On, NanoeMode.Auto], capabilities.Nanoe!.Modes);
+    }
+
+    [Fact]
+    public void Converti_50_and_60_are_offered_only_when_listed()
+    {
+        var capabilities = Parse("""{"controlCapabilities":[{"capability":"Convertible","attributes":[{"key":"cnv","values":["110","60","50","0"]}]}]}""");
+
+        Assert.Equal([ConvertiMode.Off, ConvertiMode.HighCapacity, ConvertiMode.C60, ConvertiMode.C50], capabilities.ConvertiModes);
+        Assert.DoesNotContain(ConvertiMode.C50, AcCapabilities.Default.ConvertiModes);
+        Assert.DoesNotContain(ConvertiMode.C60, AcCapabilities.Default.ConvertiModes);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"controlCapabilities":[]}""")]
+    [InlineData("[]")]
+    public void Unknown_model_gets_every_standard_control(string json)
+    {
+        Assert.Same(AcCapabilities.Default, Parse(json));
     }
 }
 
