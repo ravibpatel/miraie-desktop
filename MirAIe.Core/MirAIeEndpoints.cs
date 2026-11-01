@@ -19,6 +19,10 @@ internal static class MirAIeEndpoints
         "https://app.miraie.in/simplifi/v1/deviceManagement/devices/deviceId/"
         + string.Join(",", deviceIds.Select(Uri.EscapeDataString));
 
+    // Likewise "modelId" is a literal segment.
+    public static string DeviceModel(string modelId) =>
+        $"https://app.miraie.in/simplifi/v1/deviceManagement/deviceModels/modelId/{Uri.EscapeDataString(modelId)}";
+
     public static string DeviceStatus(string deviceId) =>
         $"https://app.miraie.in/simplifi/v1/deviceManagement/devices/{Uri.EscapeDataString(deviceId)}/mobile/status";
 

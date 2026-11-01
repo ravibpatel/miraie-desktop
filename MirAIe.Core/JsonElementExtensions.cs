@@ -8,25 +8,23 @@ namespace MirAIe.Core;
 /// </summary>
 internal static class JsonElementExtensions
 {
-    public static string? GetText(this JsonElement element, string propertyName)
-    {
-        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(propertyName, out var value))
-            return null;
-
-        return value.ValueKind switch
-        {
-            JsonValueKind.String => value.GetString(),
-            JsonValueKind.Number => value.GetRawText(),
-            JsonValueKind.True => "true",
-            JsonValueKind.False => "false",
-            _ => null,
-        };
-    }
-
-    public static decimal? GetDecimal(this JsonElement element, string propertyName) =>
-        decimal.TryParse(element.GetText(propertyName), NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            ? value
+    public static string? GetText(this JsonElement element, string propertyName) =>
+        element.ValueKind == JsonValueKind.Object && element.TryGetProperty(propertyName, out var value)
+            ? value.AsText()
             : null;
+
+    public static string? AsText(this JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.String => value.GetString(),
+        JsonValueKind.Number => value.GetRawText(),
+        JsonValueKind.True => "true",
+        JsonValueKind.False => "false",
+        _ => null,
+    };
+
+    public static decimal? GetDecimal(this JsonElement element, string propertyName) => ParseDecimal(element.GetText(propertyName));
+
+    public static decimal? AsDecimal(this JsonElement value) => ParseDecimal(value.AsText());
 
     public static IEnumerable<JsonElement> EnumerateArrayOrEmpty(this JsonElement element, string? propertyName = null)
     {
@@ -35,4 +33,7 @@ internal static class JsonElementExtensions
 
         return element.ValueKind == JsonValueKind.Array ? element.EnumerateArray() : [];
     }
+
+    private static decimal? ParseDecimal(string? text) =>
+        decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : null;
 }

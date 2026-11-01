@@ -27,8 +27,10 @@ If your account was registered with an email address, choose **Use email instead
 
 ## Features
 
-- Power, target temperature (16–30 °C), mode (cool/auto/dry/fan/heat) and fan speed (auto/quiet/low/medium/high)
-- Presets (eco/boost/clean), Converti capacity modes, vertical and horizontal swing, display light
+- Power, target temperature (the model's range, usually 16–30 °C), mode (cool/auto/dry/fan/heat) and fan speed (auto/quiet/low/medium/high)
+- Presets (eco/boost/clean), Converti capacity modes, vertical and horizontal swing, display light, nanoe™ (G and X on/off, GA off/on/auto)
+- Shows only the controls the AC's model supports, using the model's capability list from MirAIe.
+  If that list can't be read, every standard control is shown, but not nanoe.
 - Live state updates over MQTT, with automatic reconnect and token renewal
 - Energy use for yesterday, the current week and the current month
 - "Remember me" saves your username and password as one entry in the OS secret store, using
@@ -47,14 +49,16 @@ If your account was registered with an email address, choose **Use email instead
 |---|---|
 | `MirAIe.Desktop` | Avalonia UI. `MainViewModel` switches between `LoginViewModel` and `DashboardViewModel`; each AC is an `AirConditionerViewModel`. |
 | `MirAIe.Core` | MirAIe client with no UI dependencies. `MirAIeHub` handles sign-in and discovery, `AirConditioner` sends commands, `MirAIeBroker` keeps the MQTT connection. |
-| `MirAIe.Core.Tests` | Tests for payloads, status parsing and energy date rules. |
+| `MirAIe.Core.Tests` | Tests for payloads, status and capability parsing, and energy date rules. |
 
 ## How it talks to MirAIe
 
 1. `POST auth.miraie.in/.../userManagement/login` returns an access token.
 2. `GET app.miraie.in/.../homeManagement/homes` lists devices and their MQTT topic. Only the first home is used, the same as the Python library.
-3. `GET .../devices/{id}/mobile/status` returns the initial state.
-4. MQTT over TLS to `mqtt.miraie.in:8883`, with the home id as username and the access token as password:
+3. `GET .../deviceManagement/deviceModels/modelId/{modelId}` lists what each model supports (temperature range, modes, fan speeds, presets,
+   Converti levels, swing, display light, nanoe) and the field key for each.
+4. `GET .../devices/{id}/mobile/status` returns the initial state.
+5. MQTT over TLS to `mqtt.miraie.in:8883`, with the home id as username and the access token as password:
    - subscribe to `{topic}/status` and `{topic}/connectionStatus`
    - publish JSON commands such as `{"ki":1,"cnt":"an","sid":"1","acmd":"cool"}` to `{topic}/control`
 

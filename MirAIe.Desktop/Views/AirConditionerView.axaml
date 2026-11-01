@@ -62,13 +62,13 @@
             </Grid>
         </Border>
 
-        <!-- Operating settings; only available while the AC is on -->
+        <!-- Operating settings; only available while the AC is on. Each shows only what the model supports. -->
         <Border Classes="card" IsEnabled="{Binding CanControl}">
             <StackPanel Spacing="18">
                 <StackPanel Classes="setting">
                     <TextBlock Classes="label" Text="Mode" />
                     <ListBox Classes="segmented"
-                             ItemsSource="{x:Static vm:AirConditionerViewModel.Modes}"
+                             ItemsSource="{Binding Modes}"
                              SelectedItem="{Binding Mode}"
                              ItemTemplate="{StaticResource OptionTemplate}" />
                 </StackPanel>
@@ -76,15 +76,15 @@
                 <StackPanel Classes="setting">
                     <TextBlock Classes="label" Text="Fan speed" />
                     <ListBox Classes="segmented"
-                             ItemsSource="{x:Static vm:AirConditionerViewModel.FanModes}"
+                             ItemsSource="{Binding FanModes}"
                              SelectedItem="{Binding Fan}"
                              ItemTemplate="{StaticResource OptionTemplate}" />
                 </StackPanel>
 
-                <StackPanel Classes="setting">
+                <StackPanel Classes="setting" IsVisible="{Binding SupportsPresets}">
                     <TextBlock Classes="label" Text="Preset" />
                     <ListBox Classes="segmented"
-                             ItemsSource="{x:Static vm:AirConditionerViewModel.Presets}"
+                             ItemsSource="{Binding Presets}"
                              SelectedItem="{Binding Preset}"
                              ItemTemplate="{StaticResource OptionTemplate}" />
                 </StackPanel>
@@ -92,31 +92,44 @@
                 <StackPanel Classes="setting" IsVisible="{Binding SupportsConverti}">
                     <TextBlock Classes="label" Text="Converti (capacity)" />
                     <ComboBox MinWidth="140"
-                              ItemsSource="{x:Static vm:AirConditionerViewModel.ConvertiModes}"
+                              ItemsSource="{Binding ConvertiModes}"
                               SelectedItem="{Binding Converti}"
                               ItemTemplate="{StaticResource OptionTemplate}" />
                 </StackPanel>
 
-                <StackPanel Classes="setting">
+                <StackPanel Classes="setting" IsVisible="{Binding SupportsVerticalSwing}">
                     <TextBlock Classes="label" Text="Vertical swing" />
                     <ListBox Classes="segmented"
-                             ItemsSource="{x:Static vm:AirConditionerViewModel.SwingPositions}"
+                             ItemsSource="{Binding VerticalSwingPositions}"
                              SelectedItem="{Binding VerticalSwing}"
                              ItemTemplate="{StaticResource OptionTemplate}" />
                 </StackPanel>
 
-                <StackPanel Classes="setting">
+                <StackPanel Classes="setting" IsVisible="{Binding SupportsHorizontalSwing}">
                     <TextBlock Classes="label" Text="Horizontal swing" />
                     <ListBox Classes="segmented"
-                             ItemsSource="{x:Static vm:AirConditionerViewModel.SwingPositions}"
+                             ItemsSource="{Binding HorizontalSwingPositions}"
                              SelectedItem="{Binding HorizontalSwing}"
                              ItemTemplate="{StaticResource OptionTemplate}" />
                 </StackPanel>
 
-                <Grid ColumnDefinitions="*,Auto">
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding SupportsDisplayLight}">
                     <TextBlock Classes="label" Text="Display light" VerticalAlignment="Center" />
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding DisplayOn}" />
                 </Grid>
+
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding SupportsNanoeSwitch}">
+                    <TextBlock Classes="label" Text="{Binding NanoeLabel}" VerticalAlignment="Center" />
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding NanoeOn}" />
+                </Grid>
+
+                <StackPanel Classes="setting" IsVisible="{Binding SupportsNanoeModes}">
+                    <TextBlock Classes="label" Text="{Binding NanoeLabel}" />
+                    <ListBox Classes="segmented"
+                             ItemsSource="{Binding NanoeModes}"
+                             SelectedItem="{Binding Nanoe}"
+                             ItemTemplate="{StaticResource OptionTemplate}" />
+                </StackPanel>
             </StackPanel>
         </Border>
 

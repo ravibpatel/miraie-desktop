@@ -34,12 +34,33 @@ public enum ConvertiMode
     Off = 0,
     NotSupported = 1,
     C40 = 40,
+    C50 = 50,
     C55 = 55,
+    C60 = 60,
     C70 = 70,
     C80 = 80,
     C90 = 90,
     FullCapacity = 100,
     HighCapacity = 110,
+}
+
+/// <summary>
+/// Panasonic's nanoe air purifier variants.
+/// </summary>
+public enum NanoeType
+{
+    G,
+    X,
+
+    /// <summary>Has an <see cref="NanoeMode.Auto"/> setting besides on and off.</summary>
+    GA,
+}
+
+public enum NanoeMode
+{
+    Off,
+    On,
+    Auto,
 }
 
 public enum ConsumptionPeriod
@@ -82,6 +103,14 @@ internal static class WireValues
         _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
     };
 
+    public static string From(NanoeMode mode) => mode switch
+    {
+        NanoeMode.Off => "off",
+        NanoeMode.On => "on",
+        NanoeMode.Auto => "auto",
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
+    };
+
     public static string OnOff(bool on) => on ? "on" : "off";
 
     public static HvacMode? ToHvacMode(string? value) => value switch
@@ -101,6 +130,14 @@ internal static class WireValues
         "medium" => FanMode.Medium,
         "high" => FanMode.High,
         "quiet" => FanMode.Quiet,
+        _ => null,
+    };
+
+    public static NanoeMode? ToNanoeMode(string? value) => value switch
+    {
+        "off" => NanoeMode.Off,
+        "on" => NanoeMode.On,
+        "auto" => NanoeMode.Auto,
         _ => null,
     };
 

@@ -23,6 +23,16 @@ internal static class ControlPayloads
 
     public static string Display(bool on) => Build(p => p["acdc"] = WireValues.OnOff(on));
 
+    // The official app sends the capability's key index here rather than 1, and none for nanoe GA.
+    public static string Nanoe(NanoeFeature nanoe, NanoeMode mode) => Build(p =>
+    {
+        if (nanoe.Type == NanoeType.GA)
+            p.Remove("ki");
+        else
+            p["ki"] = nanoe.Type == NanoeType.X ? 23 : 7;
+        p[nanoe.Key] = WireValues.From(mode);
+    });
+
     public static string Preset(PresetMode preset) => Build(p =>
     {
         p["acem"] = WireValues.OnOff(preset == PresetMode.Eco);

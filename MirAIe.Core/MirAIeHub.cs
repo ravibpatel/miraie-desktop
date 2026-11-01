@@ -106,6 +106,7 @@ public sealed class MirAIeHub : IDisposable
         HomeId = home.GetText("homeId") ?? throw new MirAIeException("No home was found in this MirAIe account.");
 
         var devices = new List<AirConditioner>();
+        var modelIds = new Dictionary<AirConditioner, string>();
         foreach (var space in home.EnumerateArrayOrEmpty("spaces"))
         {
             foreach (var entry in space.EnumerateArrayOrEmpty("devices"))
@@ -119,6 +120,8 @@ public sealed class MirAIeHub : IDisposable
                 devices.Add(device);
                 _topics[device.StatusTopic] = (device, false);
                 _topics[device.ConnectionStatusTopic] = (device, true);
+                if (entry.GetText("modelId") is { } modelId)
+                    modelIds[device] = modelId;
             }
         }
 
@@ -140,8 +143,33 @@ public sealed class MirAIeHub : IDisposable
                 FirmwareVersion: entry.GetText("firmwareVersion"),
                 SerialNumber: entry.GetText("serialNumber"),
                 MacAddress: entry.GetText("macAddress"));
+            if (entry.GetText("modelId") is { } modelId)
+                modelIds.TryAdd(device, modelId);
         }
+
+        await LoadCapabilitiesAsync(modelIds, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Reads each model's capabilities once. ACs whose model can't be read keep <see cref="AcCapabilities.Default"/>.
+    /// </summary>
+    private Task LoadCapabilitiesAsync(Dictionary<AirConditioner, string> modelIds, CancellationToken cancellationToken) =>
+        Task.WhenAll(modelIds.GroupBy(pair => pair.Value).Select(async model =>
+        {
+            try
+            {
+                using var response = await _api.GetJsonAsync(MirAIeEndpoints.DeviceModel(model.Key), cancellationToken).ConfigureAwait(false);
+                _logger.LogDebug("Model {Model}: {Capabilities}", model.Key, response.RootElement.GetRawText());
+
+                var capabilities = CapabilityParser.Parse(response.RootElement);
+                foreach (var (device, _) in model)
+                    device.Capabilities = capabilities;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not read capabilities of model {Model}", model.Key);
+            }
+        }));
 
     private void OnMessageReceived(string topic, JsonElement payload)
     {
